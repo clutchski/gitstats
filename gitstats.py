@@ -46,7 +46,7 @@ def load(conn, repo_dir):
                 else:
                     msg = "\t".join(s[3:])
                 conn.execute('insert into commits VALUES (?, ?, ?, ?, ?)',
-                        [repo, commit_id, email, date, msg])
+                        [repo, email, date, commit_id, msg])
             print 'loaded %s commits' % i
         finally:
             conn.commit()
@@ -61,19 +61,52 @@ def _sh(cmd):
     return r.output()
 
 
-if __name__ == '__main__':
-    p = argparse.ArgumentParser()
-    p.add_argument('--db', type=str, default='gitstats.sqlite')
-    p.add_argument('paths', nargs='*')
-    args = p.parse_args()
-
+def _connect(args):
     conn = sqlite3.connect(args.db)
     conn.execute(schema)
     conn.text_factory = str
+    return conn
 
-    if args.paths:
-        print 'loading into ', args.db
-        for path in args.paths:
-            load(conn, path)
+def _rename_author(args):
+    conn = _connect(args)
+    t = args.target[0]
+    for f in args.source:
+        q = '''
+            update commits
+              set author = ?
+             where author = ?
+             '''
+        conn.execute(q, [t, f])
+    conn.commit()
 
-    print conn
+def _load(args):
+    conn = _connect(args)
+    for path in args.paths:
+        load(conn, path)
+
+def _authors(args):
+    conn = _connect(args)
+    q = 'select distinct author from commits order by author'
+    for i in conn.execute(q):
+        print i[0]
+
+
+if __name__ == '__main__':
+    p = argparse.ArgumentParser()
+    p.add_argument('--db', type=str, default='gitstats.sqlite')
+    subs = p.add_subparsers()
+
+    auth = subs.add_parser("rename_author")
+    auth.add_argument('target', nargs=1)
+    auth.add_argument('source', nargs='+')
+    auth.set_defaults(func=_rename_author)
+
+    authors = subs.add_parser("authors")
+    authors.set_defaults(func=_authors)
+
+    lp = subs.add_parser("load")
+    lp.add_argument('paths', nargs='+')
+    lp.set_defaults(func=_load)
+
+    args = p.parse_args()
+    args.func(args)
