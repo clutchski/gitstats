@@ -4,6 +4,7 @@
 import argparse
 import os
 import sqlite3
+from datetime import datetime
 
 from shell import shell
 
@@ -86,9 +87,21 @@ def _load(args):
 
 def _authors(args):
     conn = _connect(args)
-    q = 'select distinct author from commits order by author'
-    for i in conn.execute(q):
+    q = '''select distinct author
+               from commits
+            where dt > ?
+              and dt < ?
+        order by author
+            '''
+    for i in conn.execute(q, [args.start, args.end]):
         print i[0]
+
+def valid_date(s):
+    try:
+        return datetime.strptime(s, "%Y-%m-%d")
+    except ValueError:
+        msg = "Not a valid date: '{0}'.".format(s)
+        raise argparse.ArgumentTypeError(msg)
 
 
 if __name__ == '__main__':
@@ -102,7 +115,10 @@ if __name__ == '__main__':
     auth.set_defaults(func=_rename_author)
 
     authors = subs.add_parser("authors")
+    authors.add_argument('--start', type=valid_date, required=True)
+    authors.add_argument('--end', type=valid_date, required=True)
     authors.set_defaults(func=_authors)
+
 
     lp = subs.add_parser("load")
     lp.add_argument('paths', nargs='+')
