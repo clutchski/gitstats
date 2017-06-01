@@ -5,6 +5,7 @@ import argparse
 import os
 import sqlite3
 from datetime import datetime
+import prettytable
 
 from shell import shell
 
@@ -103,6 +104,24 @@ def valid_date(s):
         msg = "Not a valid date: '{0}'.".format(s)
         raise argparse.ArgumentTypeError(msg)
 
+def _quarters(args):
+    conn = _connect(args)
+    q = '''
+        select *
+          from commits
+         where author = ?
+           and dt > ?
+            and dt < ?
+         order by dt asc, repo
+            '''
+    for auth in args.authors:
+        print '=' * 50
+        print auth
+        print '=' * 50
+        t = prettytable.PrettyTable(['repo', 'hash', 'dt', 'author', 'msg'])
+        for r in conn.execute(q, [auth, args.start, args.end]):
+            t.add_row(r)
+        print t
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
@@ -119,6 +138,11 @@ if __name__ == '__main__':
     authors.add_argument('--end', type=valid_date, required=True)
     authors.set_defaults(func=_authors)
 
+    summ = subs.add_parser("summary")
+    summ.add_argument('--start', type=valid_date, required=True)
+    summ.add_argument('--end', type=valid_date, required=True)
+    summ.add_argument('authors', nargs='+')
+    summ.set_defaults(func=_quarters)
 
     lp = subs.add_parser("load")
     lp.add_argument('paths', nargs='+')
