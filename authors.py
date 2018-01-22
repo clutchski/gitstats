@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 import sys
 
@@ -7,7 +8,7 @@ for i in sys.stdin:
     i = i.strip()
     if not i:
         continue
-    aliases = i.split(' ')
+    aliases = [a.strip() for a in i.split(' ')]
     if len(aliases) < 2:
         continue
     print aliases

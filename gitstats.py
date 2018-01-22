@@ -104,8 +104,7 @@ def valid_date(s):
         msg = "Not a valid date: '{0}'.".format(s)
         raise argparse.ArgumentTypeError(msg)
 
-def _quarters(args):
-    conn = _connect(args)
+def _print(conn, author, start, end):
     q = '''
         select *
           from commits
@@ -114,14 +113,33 @@ def _quarters(args):
             and dt < ?
          order by dt asc, repo
             '''
+    print author, start, end
+    t = prettytable.PrettyTable(['repo', 'hash', 'dt', 'author', 'msg'])
+    for r in conn.execute(q, [author, start, end]):
+        t.add_row(r)
+    print t
+
+
+def _author(args):
+    conn = _connect(args)
     for auth in args.authors:
-        print '=' * 50
-        print auth
-        print '=' * 50
-        t = prettytable.PrettyTable(['repo', 'hash', 'dt', 'author', 'msg'])
-        for r in conn.execute(q, [auth, args.start, args.end]):
-            t.add_row(r)
-        print t
+        _print(conn, author, args.start, args.end)
+
+def _quarters(args):
+    conn = _connect(args)
+    bounds = [
+        (args.year, 1, 1),
+        (args.year, 3, 1),
+        (args.year, 6, 1),
+        (args.year, 9, 1),
+        (args.year+1, 1, 1),
+    ]
+    dates = [datetime(*b) for b in bounds]
+    quarters = [(dates[i], dates[i+1]) for i in range(len(bounds)-1)]
+    for auth in args.authors:
+        for i, (s, e) in enumerate(quarters):
+            _print(conn, auth, s, e)
+
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
@@ -138,11 +156,16 @@ if __name__ == '__main__':
     authors.add_argument('--end', type=valid_date, required=True)
     authors.set_defaults(func=_authors)
 
-    summ = subs.add_parser("summary")
+    quarters = subs.add_parser("quarters")
+    quarters.add_argument('--year', type=int, default=2017, required=False)
+    quarters.add_argument('authors', nargs='+')
+    quarters.set_defaults(func=_quarters)
+
+    summ = subs.add_parser("author")
     summ.add_argument('--start', type=valid_date, required=True)
     summ.add_argument('--end', type=valid_date, required=True)
     summ.add_argument('authors', nargs='+')
-    summ.set_defaults(func=_quarters)
+    summ.set_defaults(func=_author)
 
     lp = subs.add_parser("load")
     lp.add_argument('paths', nargs='+')
