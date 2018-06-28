@@ -123,7 +123,7 @@ def _print(conn, author, start, end):
 def _author(args):
     conn = _connect(args)
     for auth in args.authors:
-        _print(conn, author, args.start, args.end)
+        _print(conn, auth, args.start, args.end)
 
 def _quarters(args):
     conn = _connect(args)
